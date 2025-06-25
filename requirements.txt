@@ -1,0 +1,4 @@
+# GUI (built-in Tkinter – no pip install needed)
+# Packaging tool
+pyinstaller==5.13.0
+pygame>=2.0.0
