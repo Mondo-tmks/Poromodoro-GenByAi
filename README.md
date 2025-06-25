@@ -1,13 +1,15 @@
 
 # Pomodoro Timer Desktop Application
 
-A lightweight, bright-themed Pomodoro Timer desktop application built with Python and Tkinter, designed for Windows 7+.
+### CRAFTED THIS APP FOR 20MINUTES FROM CHATGPT AS PLANNER & CLUADE AS CODER
+
+A kinda Havy weight, ugly-themed Pomodoro Timer desktop application built with Python and Tkinter, designed for Windows 7+.
 
 ## 🎯 Features
 
 - Start, pause, reset Pomodoro timer
 - Customizable session durations (work, short/long break)
-- Bright & light UI with responsive layout
+- Stupid % Ugly UI with responsive layout
 - First-run prompt for uploading your own notification sound (.wav or .mp3)
 - Standalone executable generated with PyInstaller
 - Optional packaging using Inno Setup for professional installers
