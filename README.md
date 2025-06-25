@@ -28,10 +28,7 @@ PomodoroApp/
 ├── user_data/              # Stores custom sound and config on first run
 │   └── config.json
 │   └── sounds/
-├── requirements.txt        # List of required packages
-├── dist/                   # Output from PyInstaller
-│   └── PomodoroTimer.exe
-└── installer.iss           # Inno Setup installer script
+└── requirements.txt        # List of required packages
 ```
 
 ## 🚀 Getting Started
