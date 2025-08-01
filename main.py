@@ -12,9 +12,8 @@ class PomodoroTimer:
     def __init__(self, root):
         self.root = root
         self.root.title("Pomodoro Timer")
-        self.root.geometry("500x600")
-        self.root.minsize(300, 200)
-        self.root.configure(bg="#f9f9f9")  # Light background
+        self.root.geometry("500x700")
+        self.root.minsize(400, 500)
         
         # Load application icon if it exists
         try:
@@ -28,16 +27,22 @@ class PomodoroTimer:
         except:
             print("Warning: Could not initialize audio system")
         
-        # Bright & Light color palette
+        # Neumorphic & Minimalist color palette
         self.colors = {
-            'bg': '#f9f9f9',           # Light background
-            'primary': '#ff6f61',      # Warm tomato accent
-            'button_bg': '#ffffff',    # White buttons
-            'button_hover': '#ffe6e1', # Light pink hover
-            'text': '#333333',         # Dark text
-            'timer_text': '#444444',   # Timer display
-            'shadow': '#e0e0e0'        # Soft shadow
+            'bg': '#e6e7ee',           # Soft grey background
+            'surface': '#e6e7ee',      # Same as background for seamless look
+            'primary': '#667eea',      # Soft blue primary
+            'accent': '#764ba2',       # Purple accent
+            'text_primary': '#2d3748', # Dark grey text
+            'text_secondary': '#718096', # Lighter grey text
+            'shadow_dark': '#c8c9d0',  # Dark shadow for neumorphism
+            'shadow_light': '#ffffff', # Light shadow for neumorphism
+            'success': '#48bb78',      # Green for success states
+            'warning': '#ed8936',      # Orange for warning states
         }
+        
+        # Set root background
+        self.root.configure(bg=self.colors['bg'])
         
         # Configuration file path
         self.config_file = "pomodoro_config.json"
@@ -67,94 +72,100 @@ class PomodoroTimer:
         self.is_paused = False
         self.timer_job = None
         
-        # Configure styles
-        self.configure_styles()
-        
         # Create GUI
         self.create_widgets()
-        
-        # Configure tab order for accessibility
-        self.configure_tab_order()
         
         # Bind keyboard shortcuts
         self.root.bind('<Return>', lambda e: self.toggle_timer())
         self.root.bind('<space>', lambda e: self.toggle_timer())
         self.root.bind('<Escape>', lambda e: self.reset_timer())
+        self.root.bind('<Right>', lambda e: self.skip_session())  # New skip shortcut
         
         # Make window focusable for keyboard events
         self.root.focus_set()
         
-    def configure_styles(self):
-        """Configure custom styles for ttk widgets"""
-        style = ttk.Style()
-        
-        # Configure button style with rounded appearance
-        style.configure(
-            "Rounded.TButton",
-            background=self.colors['button_bg'],
-            foreground=self.colors['text'],
-            font=("Segoe UI", 11, "bold"),
-            relief="flat",
-            borderwidth=1,
-            focuscolor="none",
-            padding=(20, 10)
+    def create_neumorphic_frame(self, parent, width=None, height=None, **kwargs):
+        """Create a neumorphic style frame with soft shadows"""
+        # Outer frame for shadow effect
+        outer_frame = tk.Frame(
+            parent,
+            bg=self.colors['bg'],
+            **kwargs
         )
         
-        # Configure button hover effects
-        style.map(
-            "Rounded.TButton",
-            background=[('active', self.colors['button_hover']),
-                       ('pressed', self.colors['button_hover'])],
-            relief=[('pressed', 'flat')]
+        # Inner frame with raised appearance
+        inner_frame = tk.Frame(
+            outer_frame,
+            bg=self.colors['surface'],
+            relief='flat',
+            bd=0
         )
         
-        # Configure primary button style
-        style.configure(
-            "Primary.TButton",
-            background=self.colors['primary'],
-            foreground="white",
-            font=("Segoe UI", 12, "bold"),
-            relief="flat",
-            borderwidth=0,
-            focuscolor="none",
-            padding=(25, 12)
+        if width and height:
+            inner_frame.configure(width=width, height=height)
+            inner_frame.pack_propagate(False)
+        
+        inner_frame.pack(padx=8, pady=8)
+        
+        return outer_frame, inner_frame
+    
+    def create_neumorphic_button(self, parent, text, command, style="normal", **kwargs):
+        """Create a neumorphic style button"""
+        # Button colors based on style
+        if style == "primary":
+            bg_color = self.colors['primary']
+            fg_color = 'white'
+            active_bg = '#5a6fd8'
+        elif style == "success":
+            bg_color = self.colors['success']
+            fg_color = 'white'
+            active_bg = '#38a169'
+        elif style == "warning":
+            bg_color = self.colors['warning']
+            fg_color = 'white'
+            active_bg = '#dd7324'
+        else:
+            bg_color = self.colors['surface']
+            fg_color = self.colors['text_primary']
+            active_bg = '#dfe0e7'
+        
+        # Create button with neumorphic effect
+        button = tk.Button(
+            parent,
+            text=text,
+            command=command,
+            bg=bg_color,
+            fg=fg_color,
+            activebackground=active_bg,
+            activeforeground=fg_color if style in ["primary", "success", "warning"] else self.colors['text_primary'],
+            font=("Arial", 12, "normal") if style == "normal" else ("Arial", 14, "bold"),
+            relief='flat',
+            bd=0,
+            padx=24,
+            pady=12,
+            cursor="hand2",
+            **kwargs
         )
         
-        style.map(
-            "Primary.TButton",
-            background=[('active', '#ff5a4d'),
-                       ('pressed', '#ff5a4d')]
-        )
+        # Add hover effects
+        def on_enter(e):
+            if style == "primary":
+                button.config(bg='#5a6fd8')
+            elif style == "success":
+                button.config(bg='#38a169')
+            elif style == "warning":
+                button.config(bg='#dd7324')
+            else:
+                button.config(bg='#dfe0e7')
         
-        # Configure label styles
-        style.configure(
-            "Header.TLabel",
-            background=self.colors['bg'],
-            foreground=self.colors['text'],
-            font=("Segoe UI", 18, "bold")
-        )
+        def on_leave(e):
+            button.config(bg=bg_color)
         
-        style.configure(
-            "Timer.TLabel",
-            background=self.colors['bg'],
-            foreground=self.colors['timer_text'],
-            font=("Segoe UI", 48, "bold")
-        )
+        button.bind("<Enter>", on_enter)
+        button.bind("<Leave>", on_leave)
         
-        style.configure(
-            "Status.TLabel",
-            background=self.colors['bg'],
-            foreground=self.colors['text'],
-            font=("Segoe UI", 12)
-        )
-        
-        style.configure(
-            "Small.TLabel",
-            background=self.colors['bg'],
-            foreground=self.colors['text'],
-            font=("Segoe UI", 9)
-        )
-        
+        return button
+    
     def load_settings(self):
         """Load settings from JSON file or create default settings"""
         try:
@@ -181,163 +192,120 @@ class PomodoroTimer:
             pass
     
     def create_widgets(self):
-        """Create the main GUI elements with bright & light theme"""
-        # Configure root grid
-        self.root.grid_rowconfigure(0, weight=0)  # Header
-        self.root.grid_rowconfigure(1, weight=1)  # Timer
-        self.root.grid_rowconfigure(2, weight=0)  # Controls
-        self.root.grid_rowconfigure(3, weight=0)  # Settings
-        self.root.grid_columnconfigure(0, weight=1)
+        """Create the main GUI elements with neumorphic & minimalist design"""
+        # Main container
+        main_container = tk.Frame(self.root, bg=self.colors['bg'])
+        main_container.pack(fill=tk.BOTH, expand=True, padx=40, pady=30)
         
-        # Header Label
-        header_label = ttk.Label(
-            self.root,
-            text="Pomodoro Timer",
-            style="Header.TLabel"
+        # Header - minimalist title
+        header_frame = tk.Frame(main_container, bg=self.colors['bg'])
+        header_frame.pack(fill=tk.X, pady=(0, 40))
+        
+        title_label = tk.Label(
+            header_frame,
+            text="Pomodoro",
+            font=("Arial", 28, "normal"),
+            bg=self.colors['bg'],
+            fg=self.colors['text_primary']
         )
-        header_label.grid(row=0, column=0, pady=(20, 10))
+        title_label.pack()
         
-        # Timer Display (Large Font) - centered
-        timer_frame = tk.Frame(self.root, bg=self.colors['bg'])
-        timer_frame.grid(row=1, column=0, sticky="nsew", padx=20, pady=20)
-        timer_frame.grid_rowconfigure(0, weight=1)
-        timer_frame.grid_columnconfigure(0, weight=1)
-        
-        # Create timer display with soft background
-        timer_bg_frame = tk.Frame(
-            timer_frame, 
-            bg="white",
-            relief="flat",
-            bd=1
-        )
-        timer_bg_frame.grid(row=0, column=0, sticky="", padx=20, pady=20)
-        
-        self.time_display = ttk.Label(
-            timer_bg_frame,
-            text=self.format_time(self.time_remaining),
-            style="Timer.TLabel",
-            background="white"
-        )
-        self.time_display.pack(padx=40, pady=30)
-        
-        # Session indicator
-        self.session_label = ttk.Label(
-            timer_frame,
+        # Session indicator - minimal
+        self.session_label = tk.Label(
+            header_frame,
             text=self.get_session_display_name(),
-            style="Status.TLabel"
+            font=("Arial", 16, "normal"),
+            bg=self.colors['bg'],
+            fg=self.colors['text_secondary']
         )
-        self.session_label.grid(row=1, column=0, pady=(0, 10))
+        self.session_label.pack(pady=(5, 0))
         
-        # Control Buttons - horizontal layout
-        control_frame = tk.Frame(self.root, bg=self.colors['bg'])
-        control_frame.grid(row=2, column=0, pady=20)
+        # Timer display - neumorphic card
+        timer_outer, timer_inner = self.create_neumorphic_frame(main_container, width=320, height=180)
+        timer_outer.pack(pady=(0, 40))
         
-        # Start/Pause button (primary)
-        self.start_pause_btn = ttk.Button(
-            control_frame,
-            text="Start",
-            command=self.toggle_timer,
-            style="Primary.TButton"
+        self.time_display = tk.Label(
+            timer_inner,
+            text=self.format_time(self.time_remaining),
+            font=("Arial", 52, "normal"),
+            bg=self.colors['surface'],
+            fg=self.colors['text_primary']
         )
-        self.start_pause_btn.grid(row=0, column=0, padx=5)
-        self.start_pause_btn.configure(cursor="hand2")
+        self.time_display.pack(expand=True)
         
-        # Pause button (separate for clarity)
-        self.pause_btn = ttk.Button(
-            control_frame,
-            text="Pause",
-            command=self.pause_timer,
-            style="Rounded.TButton",
-            state="disabled"
+        # Progress indicator (optional minimalist element)
+        progress_frame = tk.Frame(main_container, bg=self.colors['bg'])
+        progress_frame.pack(fill=tk.X, pady=(0, 30))
+        
+        self.progress_label = tk.Label(
+            progress_frame,
+            text=f"Session {self.session_count + 1}",
+            font=("Arial", 12, "normal"),
+            bg=self.colors['bg'],
+            fg=self.colors['text_secondary']
         )
-        self.pause_btn.grid(row=0, column=1, padx=5)
-        self.pause_btn.configure(cursor="hand2")
+        self.progress_label.pack()
         
-        # Reset button
-        self.reset_btn = ttk.Button(
-            control_frame,
-            text="Reset",
-            command=self.reset_timer,
-            style="Rounded.TButton"
+        # Control buttons - minimalist layout
+        controls_frame = tk.Frame(main_container, bg=self.colors['bg'])
+        controls_frame.pack(pady=(0, 30))
+        
+        # Main action button (larger, primary)
+        self.main_action_btn = self.create_neumorphic_button(
+            controls_frame,
+            "Start",
+            self.toggle_timer,
+            style="primary"
         )
-        self.reset_btn.grid(row=0, column=2, padx=5)
-        self.reset_btn.configure(cursor="hand2")
+        self.main_action_btn.pack(pady=(0, 16))
         
-        # Settings button with gear icon
-        settings_frame = tk.Frame(self.root, bg=self.colors['bg'])
-        settings_frame.grid(row=3, column=0, pady=(0, 20))
+        # Secondary controls (smaller, in a row)
+        secondary_frame = tk.Frame(controls_frame, bg=self.colors['bg'])
+        secondary_frame.pack()
         
-        self.settings_btn = ttk.Button(
+        self.pause_btn = self.create_neumorphic_button(
+            secondary_frame,
+            "Pause",
+            self.pause_timer
+        )
+        self.pause_btn.pack(side=tk.LEFT, padx=8)
+        self.pause_btn.config(state="disabled")
+        
+        self.reset_btn = self.create_neumorphic_button(
+            secondary_frame,
+            "Reset",
+            self.reset_timer
+        )
+        self.reset_btn.pack(side=tk.LEFT, padx=8)
+        
+        # NEW: Skip button
+        self.skip_btn = self.create_neumorphic_button(
+            secondary_frame,
+            "Skip",
+            self.skip_session,
+            style="warning"
+        )
+        self.skip_btn.pack(side=tk.LEFT, padx=8)
+        
+        # Settings - minimal icon button
+        settings_frame = tk.Frame(main_container, bg=self.colors['bg'])
+        settings_frame.pack(pady=(20, 0))
+        
+        self.settings_btn = self.create_neumorphic_button(
             settings_frame,
-            text="Settings ⚙",
-            command=self.open_settings,
-            style="Rounded.TButton"
+            "Settings",
+            self.open_settings
         )
         self.settings_btn.pack()
-        self.settings_btn.configure(cursor="hand2")
-        
-        # Session counter (small text)
-        self.session_counter_label = ttk.Label(
-            self.root,
-            text=f"Sessions completed: {self.session_count}",
-            style="Small.TLabel"
-        )
-        self.session_counter_label.grid(row=4, column=0, pady=(0, 10))
-        
-        # Add tooltips for accessibility
-        self.add_tooltips()
-    
-    def add_tooltips(self):
-        """Add tooltips to buttons for accessibility"""
-        def create_tooltip(widget, text):
-            def on_enter(event):
-                tooltip = tk.Toplevel()
-                tooltip.wm_overrideredirect(True)
-                tooltip.wm_geometry(f"+{event.x_root+10}+{event.y_root+10}")
-                label = tk.Label(
-                    tooltip, 
-                    text=text,
-                    background="#ffffe0",
-                    relief="solid",
-                    borderwidth=1,
-                    font=("Segoe UI", 9)
-                )
-                label.pack()
-                widget.tooltip = tooltip
-            
-            def on_leave(event):
-                if hasattr(widget, 'tooltip'):
-                    widget.tooltip.destroy()
-                    del widget.tooltip
-            
-            widget.bind("<Enter>", on_enter)
-            widget.bind("<Leave>", on_leave)
-        
-        create_tooltip(self.start_pause_btn, "Start the timer (Enter/Space)")
-        create_tooltip(self.pause_btn, "Pause the current session")
-        create_tooltip(self.reset_btn, "Reset timer to beginning (Escape)")
-        create_tooltip(self.settings_btn, "Configure timer settings")
-    
-    def configure_tab_order(self):
-        """Configure tab order for keyboard navigation"""
-        widgets = [
-            self.start_pause_btn,
-            self.pause_btn, 
-            self.reset_btn,
-            self.settings_btn
-        ]
-        
-        for i, widget in enumerate(widgets):
-            widget.bind("<Tab>", lambda e, next_widget=widgets[(i+1) % len(widgets)]: next_widget.focus())
     
     def get_session_display_name(self):
         """Get display name for current session type"""
         names = {
-            "work": "Work Session",
+            "work": "Focus Time",
             "short_break": "Short Break",
             "long_break": "Long Break"
         }
-        return names.get(self.current_session, "Work Session")
+        return names.get(self.current_session, "Focus Time")
     
     def format_time(self, seconds):
         """Format seconds into MM:SS format"""
@@ -356,7 +324,7 @@ class PomodoroTimer:
         """Start the timer"""
         self.is_running = True
         self.is_paused = False
-        self.start_pause_btn.config(text="Running...", state="disabled")
+        self.main_action_btn.config(text="Running...", state="disabled")
         self.pause_btn.config(state="normal")
         self.countdown()
     
@@ -364,7 +332,7 @@ class PomodoroTimer:
         """Pause the timer"""
         self.is_running = False
         self.is_paused = True
-        self.start_pause_btn.config(text="Resume", state="normal")
+        self.main_action_btn.config(text="Resume", state="normal")
         self.pause_btn.config(state="disabled")
         if self.timer_job:
             self.root.after_cancel(self.timer_job)
@@ -373,7 +341,7 @@ class PomodoroTimer:
         """Resume the paused timer"""
         self.is_running = True
         self.is_paused = False
-        self.start_pause_btn.config(text="Running...", state="disabled")
+        self.main_action_btn.config(text="Running...", state="disabled")
         self.pause_btn.config(state="normal")
         self.countdown()
     
@@ -381,7 +349,7 @@ class PomodoroTimer:
         """Reset the timer to the beginning of current session"""
         self.is_running = False
         self.is_paused = False
-        self.start_pause_btn.config(text="Start", state="normal")
+        self.main_action_btn.config(text="Start", state="normal")
         self.pause_btn.config(state="disabled")
         
         if self.timer_job:
@@ -397,6 +365,32 @@ class PomodoroTimer:
         
         self.update_display()
     
+    def skip_session(self):
+        """NEW: Skip current session and move to next"""
+        if self.is_running:
+            # Stop current timer
+            self.is_running = False
+            if self.timer_job:
+                self.root.after_cancel(self.timer_job)
+        
+        # Show confirmation for skipping
+        session_name = self.get_session_display_name()
+        if messagebox.askyesno("Skip Session", f"Skip current {session_name}?"):
+            # Move to next session
+            self.next_session()
+            
+            # Reset button states
+            self.main_action_btn.config(text="Start", state="normal")
+            self.pause_btn.config(state="disabled")
+            self.is_paused = False
+            
+            # Update display
+            self.update_display()
+            
+            # Show notification
+            next_session = self.get_session_display_name()
+            messagebox.showinfo("Session Skipped", f"Moved to: {next_session}")
+    
     def countdown(self):
         """Main countdown logic"""
         if self.is_running and self.time_remaining > 0:
@@ -409,7 +403,7 @@ class PomodoroTimer:
     def session_complete(self):
         """Handle session completion"""
         self.is_running = False
-        self.start_pause_btn.config(text="Start", state="normal")
+        self.main_action_btn.config(text="Start", state="normal")
         self.pause_btn.config(state="disabled")
         
         # Play notification sound
@@ -447,7 +441,7 @@ class PomodoroTimer:
         """Move to the next session type"""
         if self.current_session == "work":
             self.session_count += 1
-            self.session_counter_label.config(text=f"Sessions completed: {self.session_count}")
+            self.progress_label.config(text=f"Session {self.session_count + 1}")
             
             # Check if it's time for long break
             if self.session_count % self.settings["sessions_until_long_break"] == 0:
@@ -468,107 +462,80 @@ class PomodoroTimer:
         self.time_display.config(text=self.format_time(self.time_remaining))
     
     def open_settings(self):
-        """Open modal settings dialog"""
+        """Open modal settings dialog with neumorphic design"""
         settings_window = tk.Toplevel(self.root)
         settings_window.title("Settings")
-        settings_window.geometry("700x500")
+        settings_window.geometry("600x550")
         settings_window.resizable(False, False)
         settings_window.configure(bg=self.colors['bg'])
         settings_window.grab_set()  # Make it modal
         
         # Center the window
         settings_window.transient(self.root)
-        x = (settings_window.winfo_screenwidth() // 2) - (450 // 2)
-        y = (settings_window.winfo_screenheight() // 2) - (400 // 2)
-        settings_window.geometry(f"700x500+{x}+{y}")
+        x = (settings_window.winfo_screenwidth() // 2) - (300)
+        y = (settings_window.winfo_screenheight() // 2) - (275)
+        settings_window.geometry(f"600x550+{x}+{y}")
         
-        # Main frame with padding
-        main_frame = tk.Frame(settings_window, bg=self.colors['bg'])
-        main_frame.pack(fill=tk.BOTH, expand=True, padx=30, pady=20)
+        # Main container
+        main_container = tk.Frame(settings_window, bg=self.colors['bg'])
+        main_container.pack(fill=tk.BOTH, expand=True, padx=30, pady=30)
         
         # Title
         title_label = tk.Label(
-            main_frame,
-            text="Timer Settings",
-            font=("Segoe UI", 16, "bold"),
+            main_container,
+            text="Settings",
+            font=("Arial", 24, "normal"),
             bg=self.colors['bg'],
-            fg=self.colors['text']
+            fg=self.colors['text_primary']
         )
-        title_label.pack(pady=(0, 20))
+        title_label.pack(pady=(0, 30))
         
-        # Settings frame
-        settings_frame = tk.Frame(main_frame, bg=self.colors['bg'])
-        settings_frame.pack(fill=tk.X, pady=(0, 20))
+        # Settings card
+        settings_outer, settings_inner = self.create_neumorphic_frame(main_container)
+        settings_outer.pack(fill=tk.BOTH, expand=True, pady=(0, 20))
         
         # Duration settings
         duration_label = tk.Label(
-            settings_frame,
-            text="Duration Settings (minutes)",
-            font=("Segoe UI", 12, "bold"),
-            bg=self.colors['bg'],
-            fg=self.colors['text']
+            settings_inner,
+            text="Duration (minutes)",
+            font=("Arial", 16, "normal"),
+            bg=self.colors['surface'],
+            fg=self.colors['text_primary']
         )
-        duration_label.pack(anchor='w', pady=(0, 10))
+        duration_label.pack(anchor='w', pady=(20, 15), padx=20)
         
-        # Work duration
-        work_frame = self.create_input_field(settings_frame, "Work Duration:", 
-                                           self.settings["work_duration"])
-        work_var = work_frame[1]
-        
-        # Short break
-        short_frame = self.create_input_field(settings_frame, "Short Break:", 
-                                            self.settings["short_break"])
-        short_var = short_frame[1]
-        
-        # Long break
-        long_frame = self.create_input_field(settings_frame, "Long Break:", 
-                                           self.settings["long_break"])
-        long_var = long_frame[1]
-        
-        # Sessions until long break
-        sessions_frame = self.create_input_field(settings_frame, "Sessions until Long Break:", 
-                                               self.settings["sessions_until_long_break"])
-        sessions_var = sessions_frame[1]
+        # Input fields
+        work_var = self.create_minimal_input(settings_inner, "Focus Time:", self.settings["work_duration"])
+        short_var = self.create_minimal_input(settings_inner, "Short Break:", self.settings["short_break"])
+        long_var = self.create_minimal_input(settings_inner, "Long Break:", self.settings["long_break"])
+        sessions_var = self.create_minimal_input(settings_inner, "Sessions until Long Break:", self.settings["sessions_until_long_break"])
         
         # Sound settings
         sound_label = tk.Label(
-            settings_frame,
+            settings_inner,
             text="Notification Sound",
-            font=("Segoe UI", 12, "bold"),
-            bg=self.colors['bg'],
-            fg=self.colors['text']
+            font=("SF Pro Display", 16, "normal"),
+            bg=self.colors['surface'],
+            fg=self.colors['text_primary']
         )
-        sound_label.pack(anchor='w', pady=(20, 10))
+        sound_label.pack(anchor='w', pady=(20, 15), padx=20)
         
-        # Sound file selection
-        sound_frame = tk.Frame(settings_frame, bg=self.colors['bg'])
-        sound_frame.pack(fill=tk.X, pady=5)
+        # Sound selection
+        sound_frame = tk.Frame(settings_inner, bg=self.colors['surface'])
+        sound_frame.pack(fill=tk.X, padx=20, pady=(0, 20))
         
-        self.sound_var = tk.StringVar(value=self.settings.get("notification_sound", "Default beep"))
-        sound_display = tk.Label(
+        self.sound_var = tk.StringVar(value=self.settings.get("notification_sound", "Default"))
+        
+        browse_btn = self.create_neumorphic_button(
             sound_frame,
-            textvariable=self.sound_var,
-            font=("Segoe UI", 10),
-            bg="white",
-            fg=self.colors['text'],
-            relief="sunken",
-            bd=1,
-            anchor='w'
+            "Choose Sound File",
+            lambda: self.browse_sound_file()
         )
-        sound_display.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
+        browse_btn.pack(anchor='w')
         
-        browse_btn = tk.Button(
-            sound_frame,
-            text="Browse...",
-            command=lambda: self.browse_sound_file(),
-            bg=self.colors['button_bg'],
-            fg=self.colors['text'],
-            font=("Segoe UI", 10),
-            relief="flat",
-            bd=1,
-            cursor="hand2"
-        )
-        browse_btn.pack(side=tk.RIGHT)
+        # Action buttons
+        button_frame = tk.Frame(main_container, bg=self.colors['bg'])
+        button_frame.pack(fill=tk.X)
         
         def save_settings():
             try:
@@ -593,57 +560,38 @@ class PomodoroTimer:
                     self.reset_timer()
                 
                 settings_window.destroy()
-                messagebox.showinfo("Settings", "Settings saved successfully! ✓")
+                messagebox.showinfo("Settings", "Settings saved successfully!")
                 
-            except ValueError as e:
-                messagebox.showerror("Invalid Input", "Please enter valid positive numbers for all duration fields.")
+            except ValueError:
+                messagebox.showerror("Invalid Input", "Please enter valid positive numbers.")
         
-        # Buttons frame
-        button_frame = tk.Frame(main_frame, bg=self.colors['bg'])
-        button_frame.pack(fill=tk.X, pady=(20, 0))
-        
-        # Save button (primary)
-        save_btn = tk.Button(
+        # Buttons
+        save_btn = self.create_neumorphic_button(
             button_frame,
-            text="Save Settings",
-            command=save_settings,
-            bg=self.colors['primary'],
-            fg="white",
-            font=("Segoe UI", 12, "bold"),
-            relief="flat",
-            padx=25,
-            pady=10,
-            cursor="hand2"
+            "Save Settings",
+            save_settings,
+            style="success"
         )
         save_btn.pack(side=tk.RIGHT, padx=(10, 0))
         
-        # Cancel button
-        cancel_btn = tk.Button(
+        cancel_btn = self.create_neumorphic_button(
             button_frame,
-            text="Cancel",
-            command=settings_window.destroy,
-            bg=self.colors['button_bg'],
-            fg=self.colors['text'],
-            font=("Segoe UI", 11),
-            relief="flat",
-            bd=1,
-            padx=20,
-            pady=10,
-            cursor="hand2"
+            "Cancel",
+            settings_window.destroy
         )
         cancel_btn.pack(side=tk.RIGHT)
     
-    def create_input_field(self, parent, label_text, default_value):
-        """Create an input field with validation"""
-        frame = tk.Frame(parent, bg=self.colors['bg'])
-        frame.pack(fill=tk.X, pady=5)
+    def create_minimal_input(self, parent, label_text, default_value):
+        """Create a minimal input field"""
+        container = tk.Frame(parent, bg=self.colors['surface'])
+        container.pack(fill=tk.X, padx=20, pady=8)
         
         label = tk.Label(
-            frame,
+            container,
             text=label_text,
-            font=("Segoe UI", 11),
-            bg=self.colors['bg'],
-            fg=self.colors['text'],
+            font=("SF Pro Display", 12, "normal"),
+            bg=self.colors['surface'],
+            fg=self.colors['text_secondary'],
             width=25,
             anchor='w'
         )
@@ -651,31 +599,18 @@ class PomodoroTimer:
         
         var = tk.StringVar(value=str(default_value))
         entry = tk.Entry(
-            frame,
+            container,
             textvariable=var,
-            font=("Segoe UI", 11),
-            bg="white",
-            fg=self.colors['text'],
-            relief="flat",
+            font=("SF Pro Display", 12, "normal"),
+            bg='white',
+            fg=self.colors['text_primary'],
+            relief='flat',
             bd=1,
-            width=10
+            width=8
         )
-        entry.pack(side=tk.RIGHT, padx=(10, 0))
+        entry.pack(side=tk.RIGHT)
         
-        # Add validation
-        def validate_input(event):
-            try:
-                value = int(var.get())
-                if value > 0:
-                    entry.config(bg="white")
-                else:
-                    entry.config(bg="#ffe6e6")
-            except ValueError:
-                entry.config(bg="#ffe6e6")
-        
-        entry.bind("<KeyRelease>", validate_input)
-        
-        return frame, var
+        return var
     
     def browse_sound_file(self):
         """Open file dialog to select notification sound"""
@@ -702,16 +637,15 @@ class PomodoroTimer:
                 self.settings["notification_sound"] = str(target_path)
                 self.sound_var.set(f"Custom: {Path(filename).name}")
                 
-                messagebox.showinfo("Sound Selected", f"Sound file copied to:\n{target_path}")
+                messagebox.showinfo("Sound Selected", f"Sound file saved!")
                 
             except Exception as e:
                 messagebox.showerror("Error", f"Could not copy sound file:\n{str(e)}")
 
-
     def handle_first_run(self):
         """Prompt user to select sound file if first time running"""
         if not self.settings.get("notification_sound"):
-            answer = messagebox.askyesno("Setup Notification Sound", "Would you like to upload a custom notification sound?")
+            answer = messagebox.askyesno("Setup", "Would you like to set a custom notification sound?")
             if answer:
                 filetypes = [
                     ("Audio files", "*.wav *.mp3"),
@@ -730,9 +664,9 @@ class PomodoroTimer:
                         shutil.copy2(filename, target_path)
                         self.settings["notification_sound"] = str(target_path)
                         self.save_settings(self.settings)
-                        messagebox.showinfo("Sound Set", f"Notification sound saved to: {target_path}")
+                        messagebox.showinfo("Setup Complete", "Notification sound configured!")
                     except Exception as e:
-                        messagebox.showerror("Error", f"Could not save notification sound:\n{str(e)}")
+                        messagebox.showerror("Error", f"Could not save sound:\n{str(e)}")
 
 def main():
     """Main function to run the Pomodoro Timer application"""
@@ -741,7 +675,7 @@ def main():
     
     # Handle window closing
     def on_closing():
-        if messagebox.askokcancel("Quit", "Do you want to quit the Pomodoro Timer?"):
+        if messagebox.askokcancel("Quit", "Exit Pomodoro Timer?"):
             pygame.mixer.quit()
             root.destroy()
     
